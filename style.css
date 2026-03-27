@@ -1,0 +1,19 @@
+body {
+  background: #1a1a2e;
+  color: white;
+  text-align: center;
+}
+
+#game-canvas {
+  border: 2px solid gold;
+  display: block;
+  margin: auto;
+}
+
+#shoot-btn {
+  background: #e94560;
+  color: white;
+  padding: 10px 30px;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
