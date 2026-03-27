@@ -41,4 +41,5 @@ function updateMedals() {
 
 function shootMedal(x) {
   medals.push({ x: x, y: 0, vx: 0, vy: 3, radius: 15 });
+  medalCount--;
 }
