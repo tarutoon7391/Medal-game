@@ -19,7 +19,6 @@ function drawPusher() {
 function gameLoop() {
   updatePusher();
   updateMedals();
-  updateUI();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   drawMedals();
   drawPusher();
