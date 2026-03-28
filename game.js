@@ -22,7 +22,7 @@ var PUSHER_H_VIS  = 28;   // apparent height of pusher above field surface (px)
 var SLOPE_W_VIS   = 22;   // apparent width of the front slope (physics units)
 
 // ── Medal constants ───────────────────────────────────────────────────────────
-var MEDAL_RADIUS   = 18;  // physics radius (px)
+var MEDAL_RADIUS   = 35;  // physics radius (px)
 var SCORE_X_MARGIN = MEDAL_RADIUS * 2.5; // medals must be this far from side walls to score
 
 // ── Matter.js setup ───────────────────────────────────────────────────────────
