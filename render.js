@@ -33,9 +33,12 @@ function project(physX, physZ, h) {
 }
 
 // Visual radius of a medal at physics depth physZ.
+// Scales the physics radius (MEDAL_RADIUS) using the same perspective factor
+// that project() uses for the x-axis, so visual size matches the physics body.
 function medalVisRadius(physZ) {
-  var t = physZ / WORLD_H;
-  return 7 + 13 * t;   // 7 px at far edge → 20 px at near edge
+  var t  = physZ / WORLD_H;
+  var hw = HW_FAR + (HW_NEAR - HW_FAR) * t;
+  return MEDAL_RADIUS * hw / (WORLD_W / 2);
 }
 
 // ── drawField() ───────────────────────────────────────────────────────────────
@@ -178,32 +181,51 @@ function drawMedals() {
       medalH = 0;
     }
 
-    var pt = project(px, pz, medalH);
     var r  = medalVisRadius(pz);
-    var ry = r * 0.48;   // flatten vertically for perspective
+    // ry: vertical semi-axis flattened for pseudo-3D perspective.
+    // Shifting cy up by exactly ry places the ellipse's bottom edge on the
+    // projected surface point, so the coin sits flush rather than floating.
+    var ry = r * 0.42;
 
-    // Drop shadow
+    var pt = project(px, pz, medalH);
+    var cx = pt.x;
+    var cy = pt.y - ry;
+
+    // Drop shadow on the surface below the coin
     ctx.beginPath();
-    ctx.ellipse(pt.x + 3, pt.y + 5, r * 0.88, ry * 0.65, 0, 0, Math.PI * 2);
+    ctx.ellipse(pt.x + 2, pt.y + 1, r * 0.82, ry * 0.55, 0, 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(0,0,0,0.30)';
     ctx.fill();
 
-    // Medal body (radial gradient for coin sheen)
-    var gr = ctx.createRadialGradient(
-      pt.x - r * 0.28, pt.y - ry * 0.28, r * 0.04,
-      pt.x,            pt.y,              r
-    );
-    gr.addColorStop(0,    '#fffde7');
-    gr.addColorStop(0.22, '#ffd700');
-    gr.addColorStop(0.62, '#d4a017');
-    gr.addColorStop(1,    '#8b6914');
+    // Medal body – metallic gold gradient: bright highlight at top, dark shadow at bottom
+    var bodyGrad = ctx.createLinearGradient(cx, cy - ry, cx, cy + ry);
+    bodyGrad.addColorStop(0,    '#fffde7');  // bright top highlight
+    bodyGrad.addColorStop(0.20, '#ffe566');  // light gold
+    bodyGrad.addColorStop(0.55, '#ffd700');  // pure gold
+    bodyGrad.addColorStop(0.82, '#b8860b');  // darker gold
+    bodyGrad.addColorStop(1,    '#6b4400');  // deep shadow at bottom
 
     ctx.beginPath();
-    ctx.ellipse(pt.x, pt.y, r, ry, 0, 0, Math.PI * 2);
-    ctx.fillStyle = gr;
+    ctx.ellipse(cx, cy, r, ry, 0, 0, Math.PI * 2);
+    ctx.fillStyle = bodyGrad;
     ctx.fill();
+
+    // Inner highlight: bright specular oval at upper-left of the coin
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, r, ry, 0, 0, Math.PI * 2);
+    ctx.clip();
+    ctx.beginPath();
+    ctx.ellipse(cx - r * 0.22, cy - ry * 0.30, r * 0.52, ry * 0.32, 0, 0, Math.PI * 2);
+    ctx.fillStyle = 'rgba(255,255,220,0.52)';
+    ctx.fill();
+    ctx.restore();
+
+    // Rim outline
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, r, ry, 0, 0, Math.PI * 2);
     ctx.strokeStyle = '#7a5c10';
-    ctx.lineWidth   = 1;
+    ctx.lineWidth   = Math.max(1, r * 0.06);
     ctx.stroke();
   });
 }
