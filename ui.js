@@ -1,8 +1,8 @@
-// ui.js — DOM updates and user-input handling.
+// ui.js – DOM updates and user-input wiring.
 // Loaded after game.js, before render.js.
 
 function updateUI() {
-  document.getElementById('score').textContent      = score;
+  document.getElementById('score').textContent       = score;
   document.getElementById('medal-count').textContent = medalCount;
 }
 

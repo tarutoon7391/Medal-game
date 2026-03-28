@@ -1,125 +1,134 @@
-// -------------------------------------------------------
-// Field projection constants  (canvas: 480 x 400)
-// -------------------------------------------------------
-// The field occupies the lower half of the canvas and is
-// drawn as a trapezoid for a pseudo-3D top-down look.
-// Coordinate system:
-//   x : -0.5 (left) … 0.5 (right)  — normalised field width
-//   z :  0   (far)  … 1   (near)   — normalised field depth
-// -------------------------------------------------------
-var FIELD = {
-  yFar  : 200,   // canvas-y of the far  (back)  edge
-  yNear : 400,   // canvas-y of the near (front) edge
-  hwFar : 150,   // half-pixel-width at the far  edge
-  hwNear: 240,   // half-pixel-width at the near edge
-  cx    : 240    // canvas centre-x
-};
+// game.js – Matter.js physics engine + game logic.
+// Matter.js 0.19.0 is loaded via CDN before this file.
 
-// Convert field coords → canvas pixels.
-function project(x, z) {
-  var sy = FIELD.yFar + (FIELD.yNear - FIELD.yFar) * z;
-  var hw = FIELD.hwFar + (FIELD.hwNear - FIELD.hwFar) * z;
-  return { x: FIELD.cx + x * hw * 2, y: sy };
-}
+// ── Convenience alias ────────────────────────────────────────────────────────
+var M = Matter;
 
-// Visual radius of a medal at depth z.
-function medalRadius(z) {
-  return 5 + 8 * z;   // 5px at the far edge, 13px at the near edge
-}
+// ── World / field dimensions (physics units) ─────────────────────────────────
+// x : 0 (left)  →  WORLD_W (right)
+// y : 0 (far/back)  →  WORLD_H (near/front)
+var WORLD_W = 600;
+var WORLD_H = 300;
 
-// -------------------------------------------------------
-// Game state
-// -------------------------------------------------------
-var medals     = [];
+// ── Pusher constants ──────────────────────────────────────────────────────────
+// The pusher is a slab whose back edge is always fixed at y = 0 (far wall).
+// Its front edge oscillates between PUSHER_DEPTH_MIN and PUSHER_DEPTH_MAX.
+var PUSHER_DEPTH_MIN = WORLD_H / 4;   // 75  – 1/4 of field
+var PUSHER_DEPTH_MAX = WORLD_H / 3;   // 100 – 1/3 of field
+var PUSHER_SPEED     = 0.35;          // physics units per frame
+
+// Visual-only constants referenced by render.js
+var PUSHER_H_VIS  = 28;   // apparent height of pusher above field surface (px)
+var SLOPE_W_VIS   = 22;   // apparent width of the front slope (physics units)
+
+// ── Medal constants ───────────────────────────────────────────────────────────
+var MEDAL_RADIUS   = 18;  // physics radius (px)
+var SCORE_X_MARGIN = MEDAL_RADIUS * 2.5; // medals must be this far from side walls to score
+
+// ── Matter.js setup ───────────────────────────────────────────────────────────
+// y-axis represents field depth (0 = far/back, WORLD_H = near/front).
+// A tiny positive gravity along y produces a gentle forward drift so that
+// medals naturally creep toward the scoring edge without player input.
+var engine = M.Engine.create({ gravity: { x: 0, y: 0.001 } });
+var world  = engine.world;
+
+// Static boundary walls
+var _wallOpts = { isStatic: true, restitution: 0.25, friction: 0.05,
+                  frictionAir: 0, label: 'wall' };
+var wallLeft  = M.Bodies.rectangle(-15, WORLD_H / 2, 30, WORLD_H * 3, _wallOpts);
+var wallRight = M.Bodies.rectangle(WORLD_W + 15, WORLD_H / 2, 30, WORLD_H * 3, _wallOpts);
+var wallBack  = M.Bodies.rectangle(WORLD_W / 2, -15, WORLD_W + 60, 30, _wallOpts);
+M.World.add(world, [wallLeft, wallRight, wallBack]);
+
+// ── Pusher state ──────────────────────────────────────────────────────────────
+// The pusher is NOT a physics body; its interaction with medals is applied
+// programmatically each frame so that the back edge stays fixed at y = 0
+// while the front edge extends / retracts.
+var pusherDepth = PUSHER_DEPTH_MIN;  // current front-edge depth (y value)
+var pusherDir   = 1;                 //  1 = extending toward viewer, -1 = retracting
+
+// ── Game state ────────────────────────────────────────────────────────────────
 var score      = 0;
 var medalCount = 50;
+var medals     = [];   // array of active Matter.js Bodies
 
-// -------------------------------------------------------
-// Pusher (上の板)
-// -------------------------------------------------------
-// The pusher spans PUSHER_DEPTH (= 0.25 = 1/4 of field) in
-// z-space and oscillates so that its front edge moves
-// between PUSHER_ZMIN and PUSHER_ZMAX.
-var PUSHER_DEPTH = 0.25;
-var PUSHER_SPEED = 0.004;
-var PUSHER_ZMIN  = 0.25;
-var PUSHER_ZMAX  = 0.58;   // ≈ front-edge at 1/3 of visible field
-
-var pusherFront = 0.35;    // current front-edge depth
-var pusherDir   = 1;       //  1 = moving toward viewer, -1 = away
-var pusherDelta = 0;       // how much the pusher moved this frame
-
-function getPusherBack() {
-  return pusherFront - PUSHER_DEPTH;
-}
-
+// ── Pusher update ─────────────────────────────────────────────────────────────
 function updatePusher() {
-  var next = pusherFront + PUSHER_SPEED * pusherDir;
-  if (next >= PUSHER_ZMAX) {
-    next = PUSHER_ZMAX;
-    pusherDir = -1;
-  } else if (next <= PUSHER_ZMIN) {
-    next = PUSHER_ZMIN;
-    pusherDir = 1;
+  var prev = pusherDepth;
+  var next = pusherDepth + PUSHER_SPEED * pusherDir;
+
+  if (next >= PUSHER_DEPTH_MAX) { next = PUSHER_DEPTH_MAX; pusherDir = -1; }
+  if (next <= PUSHER_DEPTH_MIN) { next = PUSHER_DEPTH_MIN; pusherDir =  1; }
+
+  var delta = next - prev;
+  pusherDepth = next;
+
+  // When extending (delta > 0) push every medal that sits on the pusher.
+  // We only push forward; retracting leaves medals behind (ratchet effect).
+  if (delta > 0) {
+    for (var i = 0; i < medals.length; i++) {
+      var m   = medals[i];
+      var pos = m.position;
+      // Medal is within the pusher zone (allow one radius of overlap at front).
+      if (pos.y < pusherDepth + MEDAL_RADIUS) {
+        // Ensure the medal moves at least as fast as the pusher front edge.
+        if (m.velocity.y < delta) {
+          M.Body.setVelocity(m, { x: m.velocity.x, y: delta });
+        }
+      }
+    }
   }
-  pusherDelta = next - pusherFront;
-  pusherFront = next;
 }
 
-// -------------------------------------------------------
-// Medal physics
-// -------------------------------------------------------
+// ── Medal update ──────────────────────────────────────────────────────────────
 function updateMedals() {
-  var pb = getPusherBack();
   for (var i = medals.length - 1; i >= 0; i--) {
-    var m = medals[i];
+    var m   = medals[i];
+    var pos = m.position;
 
-    if (m.z >= pb - 0.02 && m.z <= pusherFront + 0.01) {
-      // Medal is on the pusher — loose forward follow,
-      // barely moves when pusher retreats (ratchet effect).
-      m.z += pusherDelta * (pusherDelta > 0 ? 0.6 : 0.05);
-    } else if (m.z > pusherFront) {
-      // Medal is on the field past the pusher.
-      // Receives an indirect push and a slow natural drift.
-      if (pusherDelta > 0) { m.z += pusherDelta * 0.25; }
-      m.z += 0.0004;
-    }
-
-    // Tiny lateral drift for variety.
-    m.x += (Math.random() - 0.5) * 0.0005;
-    m.x = Math.max(-0.48, Math.min(0.48, m.x));
-
-    // Medal reached the front edge.
-    if (m.z >= 1.0) {
-      // Only score if within the front opening (not the side edges).
-      if (m.x > -0.45 && m.x < 0.45) { score++; }
+    // Medal crossed the front edge → scoring check.
+    if (pos.y > WORLD_H + MEDAL_RADIUS) {
+      if (pos.x >= SCORE_X_MARGIN && pos.x <= WORLD_W - SCORE_X_MARGIN) {
+        score++;
+      }
+      M.World.remove(world, m);
       medals.splice(i, 1);
       continue;
     }
 
-    // Safety: remove medals that drifted behind the field.
-    if (m.z < -0.05) {
+    // Remove medals that somehow escaped behind the back wall.
+    if (pos.y < -(MEDAL_RADIUS * 3)) {
+      M.World.remove(world, m);
       medals.splice(i, 1);
     }
   }
 }
 
-// -------------------------------------------------------
-// Shoot a medal from the back-centre of the pusher.
-// -------------------------------------------------------
+// ── Shoot a medal ─────────────────────────────────────────────────────────────
+// Launch position: back-centre of the pusher (fixed, near y = 0).
 function shootMedal() {
   if (medalCount <= 0) { return; }
-  medals.push({
-    x: (Math.random() * 0.1 - 0.05),   // slight random offset from center
-    z: getPusherBack() + 0.01
+
+  var spawnX = WORLD_W / 2 + (Math.random() - 0.5) * 20;
+  var spawnY = MEDAL_RADIUS + 4;
+
+  var medal = M.Bodies.circle(spawnX, spawnY, MEDAL_RADIUS, {
+    restitution : 0.25,
+    friction    : 0.05,
+    frictionAir : 0.045,
+    density     : 0.002,
+    label       : 'medal'
   });
+  // Give the medal an initial nudge toward the viewer.
+  M.Body.setVelocity(medal, { x: (Math.random() - 0.5) * 0.4, y: 0.5 });
+  M.World.add(world, medal);
+  medals.push(medal);
   medalCount--;
 }
 
-// -------------------------------------------------------
-// Main game-logic update (called once per frame).
-// -------------------------------------------------------
+// ── Main update (called once per frame from render.js) ────────────────────────
 function updateGame() {
   updatePusher();
   updateMedals();
+  M.Engine.update(engine, 1000 / 60);
 }
