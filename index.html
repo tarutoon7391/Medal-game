@@ -3,21 +3,310 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Medal Game</title>
+  <title>🎰 Medal Game – コインをジャラジャラ！</title>
+  <meta name="description" content="爽快！コインをじゃんじゃん投げ込む、最高にポップなメダルゲーム。今すぐ遊ぼう！">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Boogaloo&family=Nunito:wght@400;700;900&family=M+PLUS+Rounded+1c:wght@400;700;900&family=Noto+Sans+JP:wght@400;700;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"
-          integrity="sha384-OqQP3UcU7efkEYDRjGmQou2uEvzGFGRtwdYXTjnupeB9cWogSgQ4BOhyklFBYbBR"
-          crossorigin="anonymous"></script>
 </head>
 <body>
-  <canvas id="game-canvas" width="600" height="500"></canvas>
-  <div>
-    <span id="score">0</span>
-    <span id="medal-count">50</span>
-    <button id="shoot-btn">SHOOT</button>
-  </div>
-  <script src="game.js"></script>
-  <script src="ui.js"></script>
-  <script src="render.js"></script>
+
+  <!-- ===== ナビゲーション ===== -->
+  <header class="site-header">
+    <div class="header-inner">
+      <div class="logo">🎰 MedalGame</div>
+      <nav>
+        <a href="#features">特徴</a>
+        <a href="#how-to-play">遊び方</a>
+        <a href="#gallery">ギャラリー</a>
+        <a href="#play" class="nav-cta">今すぐ遊ぶ！</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ===== ヒーローセクション ===== -->
+  <section class="hero" id="hero">
+    <!-- 背景の装飾 -->
+    <div class="hero-bg-shapes">
+      <div class="shape shape-1"></div>
+      <div class="shape shape-2"></div>
+      <div class="shape shape-3"></div>
+      <div class="shape shape-4"></div>
+      <div class="shape shape-5"></div>
+    </div>
+
+    <!-- コイン雨アニメ -->
+    <div class="coin-rain" aria-hidden="true" id="coinRain"></div>
+
+    <div class="hero-content">
+      <div class="hero-badge reveal-item">🏆 ブラウザで遊べる</div>
+      <h1 class="hero-title reveal-item">
+        <span class="title-line-1">ジャラジャラ</span>
+        <span class="title-line-2">メダルゲーム！</span>
+      </h1>
+      <p class="hero-sub reveal-item">
+        コインを投げ込んでジャックポットを狙え！<br>
+        スリル満点の物理シミュレーションで<br class="sp-only">思わず夢中になること間違いなし🎉
+      </p>
+      <div class="hero-ctas reveal-item">
+        <a href="#play" class="btn btn-primary" id="ctaPlay">
+          <span class="btn-icon">▶</span> 今すぐプレイ！
+        </a>
+        <a href="#how-to-play" class="btn btn-secondary">
+          <span class="btn-icon">📖</span> 遊び方を見る
+        </a>
+      </div>
+      <div class="hero-stats reveal-item">
+        <div class="stat">
+          <strong>∞</strong><span>無限コイン</span>
+        </div>
+        <div class="stat-divider">✦</div>
+        <div class="stat">
+          <strong>0円</strong><span>完全無料</span>
+        </div>
+        <div class="stat-divider">✦</div>
+        <div class="stat">
+          <strong>即スタート</strong><span>インストール不要</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ゲーム画面モックアップ -->
+    <div class="hero-mockup reveal-item">
+      <div class="mockup-frame">
+        <div class="mockup-screen">
+          <div class="mockup-game-area">
+            <div class="mockup-coins">
+              <div class="mock-coin c1">🪙</div>
+              <div class="mock-coin c2">🪙</div>
+              <div class="mock-coin c3">💰</div>
+              <div class="mock-coin c4">🏆</div>
+              <div class="mock-coin c5">🪙</div>
+              <div class="mock-coin c6">⭐</div>
+            </div>
+            <div class="mockup-pusher">
+              <div class="pusher-platform"></div>
+              <div class="pusher-pile">🪙🪙🪙🪙🪙🪙🪙🪙🪙🪙</div>
+            </div>
+          </div>
+          <div class="mockup-hud">
+            <div class="hud-item"><span class="hud-label">スコア</span><span class="hud-val" id="mockScore">0</span></div>
+            <div class="hud-item"><span class="hud-label">コイン</span><span class="hud-val">50</span></div>
+            <div class="mockup-shoot-btn">SHOOT 🎯</div>
+          </div>
+        </div>
+      </div>
+      <div class="mockup-glow"></div>
+    </div>
+  </section>
+
+  <!-- ===== 特徴セクション ===== -->
+  <section class="features" id="features">
+    <div class="section-header">
+      <div class="section-tag">✨ ゲームの特徴</div>
+      <h2 class="section-title">なんでこんなに楽しいの？</h2>
+    </div>
+
+    <div class="features-grid">
+      <div class="feature-card fc-1 scroll-reveal">
+        <div class="feature-icon-wrap">
+          <div class="feature-icon">🎳</div>
+        </div>
+        <h3>リアル物理演算</h3>
+        <p>Matter.js が生み出す本物そっくりの物理エンジン。コインが跳ねる・転がる・積み重なる様子がリアルで爽快！</p>
+        <div class="feature-deco">⚡</div>
+      </div>
+
+      <div class="feature-card fc-2 scroll-reveal">
+        <div class="feature-icon-wrap">
+          <div class="feature-icon">🎯</div>
+        </div>
+        <h3>狙って投げ込め！</h3>
+        <p>SHOOTボタンでコインを投入。落とす場所を変えてプッシャーをうまく使えば大量ゲットのチャンス！</p>
+        <div class="feature-deco">💫</div>
+      </div>
+
+      <div class="feature-card fc-3 scroll-reveal">
+        <div class="feature-icon-wrap">
+          <div class="feature-icon">🏆</div>
+        </div>
+        <h3>ハイスコアを目指せ</h3>
+        <p>コインを落とすたびにスコアが加算。どこまでスコアを伸ばせるか、自分の限界に挑もう！</p>
+        <div class="feature-deco">🌟</div>
+      </div>
+
+      <div class="feature-card fc-4 scroll-reveal">
+        <div class="feature-icon-wrap">
+          <div class="feature-icon">⚡</div>
+        </div>
+        <h3>即起動・即プレイ</h3>
+        <p>ブラウザを開くだけでOK！ダウンロード不要・登録不要。思い立ったらすぐ遊べるお手軽さが魅力。</p>
+        <div class="feature-deco">🚀</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 遊び方セクション ===== -->
+  <section class="how-to-play" id="how-to-play">
+    <div class="htp-bg"></div>
+    <div class="section-header">
+      <div class="section-tag">🕹️ How to Play</div>
+      <h2 class="section-title">遊び方は超シンプル！</h2>
+    </div>
+
+    <div class="steps-container">
+      <div class="step scroll-reveal">
+        <div class="step-num">01</div>
+        <div class="step-body">
+          <div class="step-icon">🌐</div>
+          <h3>ブラウザでアクセス</h3>
+          <p>スマホでもPCでも、ブラウザさえあれば即スタート。インストールは一切不要！</p>
+        </div>
+        <div class="step-arrow">→</div>
+      </div>
+
+      <div class="step scroll-reveal">
+        <div class="step-num">02</div>
+        <div class="step-body">
+          <div class="step-icon">🎯</div>
+          <h3>SHOOTボタンを押す</h3>
+          <p>「SHOOT」ボタンをクリック！コインが物理エンジンで飛んでいく。何度でも押せるよ！</p>
+        </div>
+        <div class="step-arrow">→</div>
+      </div>
+
+      <div class="step scroll-reveal">
+        <div class="step-num">03</div>
+        <div class="step-body">
+          <div class="step-icon">💰</div>
+          <h3>コインを落とそう</h3>
+          <p>プッシャーにコインを積んでどんどん押し出せ！落ちたコイン数がスコアに加算される。</p>
+        </div>
+        <div class="step-arrow">→</div>
+      </div>
+
+      <div class="step scroll-reveal">
+        <div class="step-num">04</div>
+        <div class="step-body">
+          <div class="step-icon">🏆</div>
+          <h3>ハイスコアを狙え！</h3>
+          <p>何枚落とせるかがカギ。タイミングと場所を工夫してジャックポットを狙おう！</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="htp-cta scroll-reveal">
+      <a href="#play" class="btn btn-primary btn-large">
+        <span class="btn-icon">🎮</span> やってみる！
+      </a>
+    </div>
+  </section>
+
+  <!-- ===== ギャラリーセクション ===== -->
+  <section class="gallery" id="gallery">
+    <div class="section-header">
+      <div class="section-tag">📸 ゲームスクリーンショット</div>
+      <h2 class="section-title">こんな感じで遊べる！</h2>
+    </div>
+
+    <div class="gallery-grid">
+      <div class="gallery-item gi-large scroll-reveal">
+        <div class="gallery-placeholder gp-1">
+          <div class="gp-inner">
+            <div class="gp-coins">🪙🪙🪙💰🪙🪙🏆🪙🪙🪙</div>
+            <div class="gp-label">ゲームプレイ画面</div>
+            <div class="gp-sub">物理エンジンでコインがリアルに動く！</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="gallery-item gi-sm scroll-reveal">
+        <div class="gallery-placeholder gp-2">
+          <div class="gp-inner">
+            <div class="gp-emoji">🎯</div>
+            <div class="gp-label">SHOOT瞬間</div>
+            <div class="gp-sub">コインが降り注ぐ！</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="gallery-item gi-sm scroll-reveal">
+        <div class="gallery-placeholder gp-3">
+          <div class="gp-inner">
+            <div class="gp-emoji">💥</div>
+            <div class="gp-label">大量ゲット！</div>
+            <div class="gp-sub">プッシャーが大活躍</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="gallery-item gi-med scroll-reveal">
+        <div class="gallery-placeholder gp-4">
+          <div class="gp-inner">
+            <div class="gp-emoji">🏆</div>
+            <div class="gp-label">ハイスコア達成</div>
+            <div class="gp-sub">新記録を目指そう！</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="gallery-item gi-med scroll-reveal">
+        <div class="gallery-placeholder gp-5">
+          <div class="gp-inner">
+            <div class="gp-emoji">🎰</div>
+            <div class="gp-label">ジャックポット！</div>
+            <div class="gp-sub">最高のスリル体験</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== プレイセクション ===== -->
+  <section class="play-cta" id="play">
+    <div class="play-bg-shapes">
+      <div class="play-shape ps-1"></div>
+      <div class="play-shape ps-2"></div>
+      <div class="play-shape ps-3"></div>
+    </div>
+    <div class="play-content scroll-reveal">
+      <div class="play-emoji-row">🎰 🪙 🏆 🎯 💰 ⭐</div>
+      <h2 class="play-title">さあ、遊んでみよう！</h2>
+      <p class="play-desc">ゲームはこのページで直接プレイできます。<br>準備はいい？コインをジャラジャラ投げ込め！</p>
+      <a href="https://github.com/tarutoon7391/Medal-game" class="btn btn-mega" target="_blank" rel="noopener">
+        🎮 ゲームを起動する！
+        <span class="btn-sparkle">✨</span>
+      </a>
+    </div>
+  </section>
+
+  <!-- ===== フッター ===== -->
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-brand">
+        <div class="footer-logo">🎰 MedalGame</div>
+        <p class="footer-tagline">コインをジャラジャラ、スコアをどんどん！</p>
+      </div>
+      <div class="footer-links">
+        <div class="footer-col">
+          <h4>ゲーム</h4>
+          <a href="#play">今すぐプレイ</a>
+          <a href="#how-to-play">遊び方</a>
+          <a href="#features">特徴</a>
+        </div>
+        <div class="footer-col">
+          <h4>情報</h4>
+          <a href="https://github.com/tarutoon7391/Medal-game" target="_blank" rel="noopener">GitHub</a>
+          <a href="#gallery">スクリーンショット</a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>© 2024 Medal Game &nbsp;·&nbsp; Made with ❤️ &amp; 🪙 &nbsp;·&nbsp; <a href="https://github.com/tarutoon7391/Medal-game" target="_blank" rel="noopener">View on GitHub</a></p>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
 </body>
 </html>
